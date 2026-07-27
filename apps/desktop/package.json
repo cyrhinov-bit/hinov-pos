@@ -1,0 +1,45 @@
+{
+  "name": "desktop",
+  "private": true,
+  "version": "0.0.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "npm run start:electron",
+    "start:electron": "wait-on http://localhost:3001 && electron .",
+    "build:web": "cd ../web && npx vite build && node -e \"const fs=require('fs'); fs.rmSync('../../desktop/dist-web', {recursive:true, force:true}); fs.cpSync('dist', '../../desktop/dist-web', {recursive:true})\"",
+    "build": "npm run build:web && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.hinov.pos",
+    "productName": "Hinov POS",
+    "electronVersion": "31.3.1",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "dist-web/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^8.2.2",
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "wait-on": "^7.2.0"
+  }
+}

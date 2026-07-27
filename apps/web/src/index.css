@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Roboto", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-brand-primary: #7e0092;
+  --color-brand-primary-hover: #630073;
+  --color-brand-primary-light: #f6e6f8;
+  --color-brand-secondary: #b80049;
+  --color-brand-secondary-hover: #910039;
+  --color-brand-secondary-light: #fce8f0;
+  --color-brand-accent: #00505b;
+  --color-brand-accent-hover: #003a42;
+  --color-brand-accent-light: #e0f4f7;
+  --color-brand-bg: #f8f9ff;
+  --color-brand-surface: #ffffff;
+  --color-brand-surface-container: #e5eeff;
+  --color-brand-surface-container-low: #eff4ff;
+  --color-brand-surface-container-high: #dde9fd;
+  --color-brand-text: #101c2b;
+  --color-brand-muted: #536070;
+  --color-brand-border: #dbe3f0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+/* Material Floating Gradient Card Headers */
+.card-header-gradient {
+  background: linear-gradient(60deg, #9c27b0, #7b1fa2);
+}
+.card-header-gradient-primary {
+  background: linear-gradient(60deg, #ab47bc, #7e0092);
+}
+.card-header-gradient-1 {
+  background: linear-gradient(60deg, #ab47bc, #8e24aa);
+}
+.card-header-gradient-2 {
+  background: linear-gradient(60deg, #ffa726, #fb8c00);
+}
+.card-header-gradient-3 {
+  background: linear-gradient(60deg, #66bb6a, #43a047);
+}
+.card-header-gradient-4 {
+  background: linear-gradient(60deg, #26c6da, #00acc1);
+}
+.card-header-gradient-secondary {
+  background: linear-gradient(60deg, #ec407a, #d81b60);
+}
+.card-header-info {
+  background: linear-gradient(60deg, #26c6da, #00acc1);
+}
+.card-header-success {
+  background: linear-gradient(60deg, #66bb6a, #43a047);
+}
+.card-header-warning {
+  background: linear-gradient(60deg, #ffa726, #fb8c00);
+}
+.card-header-error {
+  background: linear-gradient(60deg, #ef5350, #e53935);
+}
+
+/* Glow Shadows */
+.glow-shadow-primary {
+  box-shadow: 0 7px 10px -5px rgba(126, 0, 146, 0.4);
+}
+.glow-shadow-secondary {
+  box-shadow: 0 7px 10px -5px rgba(184, 0, 73, 0.4);
+}
+.glow-shadow-tertiary {
+  box-shadow: 0 7px 10px -5px rgba(0, 80, 91, 0.4);
+}
+.glow-shadow-warning {
+  box-shadow: 0 7px 10px -5px rgba(255, 152, 0, 0.4);
+}
+.glow-shadow-success {
+  box-shadow: 0 7px 10px -5px rgba(76, 175, 80, 0.4);
+}
+.glow-shadow-info {
+  box-shadow: 0 7px 10px -5px rgba(0, 188, 212, 0.4);
+}
+.glow-shadow-error {
+  box-shadow: 0 7px 10px -5px rgba(244, 67, 54, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+

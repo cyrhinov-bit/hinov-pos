@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: SmartStock ERP",
+  "description": "Enterprise Resource Planning and Logistics Management system for governance, inventory tracking, sales point, and real-time operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
