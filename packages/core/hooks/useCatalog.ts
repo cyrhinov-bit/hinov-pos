@@ -5,9 +5,9 @@ import { INITIAL_PRODUCTS } from '../data';
 const API_URL = 'http://localhost:3000/api';
 
 export function useCatalog() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = (useState as any)([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = (useState as any)(null);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 

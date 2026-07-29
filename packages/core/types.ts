@@ -20,12 +20,14 @@ export type Screen =
   | 'director-profile';
 
 export interface User {
+  id?: string;
   name: string;
   role: string;
   avatar: string;
   branch: string;
   email?: string;
   password?: string;
+  password_hash?: string;
 }
 
 export interface Director {
