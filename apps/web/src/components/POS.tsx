@@ -128,6 +128,17 @@ export const POS: React.FC<POSProps> = ({
     return localStorage.getItem('pos_caisse_session_id') || '';
   });
 
+  const [companySettings] = useState(() => {
+    const saved = localStorage.getItem('pos_company_settings');
+    if (saved) return JSON.parse(saved);
+    return {
+      name: 'SUPERMARCHÉ MODERNE',
+      logo: '',
+      address: 'SmartStock ERP • Point de Vente',
+      phone: ''
+    };
+  });
+
   // Form states for caisse opening & closing
   const [openFormCash, setOpenFormCash] = useState<string>('50000');
   const [openFormObs, setOpenFormObs] = useState<string>('');
@@ -2766,13 +2777,17 @@ export const POS: React.FC<POSProps> = ({
               
               {/* Header with Logo */}
               <div className="text-center space-y-1 pb-2">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-[#8e24aa] text-white flex items-center justify-center shadow-md mb-2">
-                  <span className="material-symbols-outlined text-2xl">storefront</span>
-                </div>
+                {companySettings.logo && !companySettings.logo.startsWith('http') ? (
+                  <img src={companySettings.logo} alt="Logo" className="w-16 h-16 mx-auto rounded-2xl object-contain mb-2" />
+                ) : (
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-[#8e24aa] text-white flex items-center justify-center shadow-md mb-2">
+                    <span className="material-symbols-outlined text-2xl">storefront</span>
+                  </div>
+                )}
                 <h2 className="font-black text-base text-gray-950 uppercase tracking-wide">
-                  SUPERMARCHÉ MODERNE
+                  {companySettings.name}
                 </h2>
-                <p className="text-[11px] text-gray-500 font-medium">SmartStock ERP • Point de Vente</p>
+                <p className="text-[11px] text-gray-500 font-medium">{companySettings.address} {companySettings.phone ? `• ${companySettings.phone}` : ''}</p>
                 
                 <div className="pt-2 text-[11px] text-gray-600 space-y-0.5 text-left bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="flex justify-between">
@@ -2936,8 +2951,9 @@ export const POS: React.FC<POSProps> = ({
                         </head>
                         <body>
                           <div class="center">
-                            <div class="title">SUPERMARCHÉ MODERNE</div>
-                            <div style="font-size:10px; color:#555;">SmartStock ERP • Point de Vente</div>
+                            ${companySettings.logo && !companySettings.logo.startsWith('http') ? `<img src="${companySettings.logo}" style="width:50px; height:auto; margin-bottom: 5px;" />` : ''}
+                            <div class="title">${companySettings.name}</div>
+                            <div style="font-size:10px; color:#555;">${companySettings.address} ${companySettings.phone ? `<br/>${companySettings.phone}` : ''}</div>
                           </div>
                           <div class="divider"></div>
                           <div>

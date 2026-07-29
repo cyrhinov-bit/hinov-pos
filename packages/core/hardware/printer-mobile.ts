@@ -1,4 +1,4 @@
-import { PrinterService } from './printer';
+import type { PrinterService } from './printer';
 
 /**
  * Implémentation de PrinterService pour l'application Mobile (React Native).

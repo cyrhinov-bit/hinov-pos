@@ -10,9 +10,11 @@ import { User } from '../types';
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
   accounts: User[];
+  onGoToCatalog?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCatalog }) => {
+  const [activeTab, setActiveTab] = useState<'direction' | 'pos'>('direction');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +25,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts }) => {
   const [selectedUserForLogin, setSelectedUserForLogin] = useState<User | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // POS PIN state
+  const [selectedPinUser, setSelectedPinUser] = useState<User | null>(null);
+  const [pin, setPin] = useState('');
+
   // Monitor real online status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -30,8 +36,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts }) => {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Initial check
     setIsOnline(navigator.onLine);
 
     return () => {
@@ -40,352 +44,265 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts }) => {
     };
   }, []);
 
-  const handleQuickLogin = (roleName: string) => {
-    // Find the corresponding user account
-    const user = accounts.find((acc) => acc.role.toLowerCase().includes(roleName.toLowerCase()) || roleName.toLowerCase().includes(acc.role.toLowerCase()));
-    if (user) {
-      setEmail(user.email || '');
-      setPassword(user.password || '');
-      setErrorMessage('');
-      
-      // Auto submit
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setIsAuthorized(true);
-        setSelectedUserForLogin(user);
-        setTimeout(() => {
-          onLoginSuccess(user);
-        }, 800);
-      }, 1000);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDirectorLogin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMessage('');
     if (!email || !password) {
       setErrorMessage('Veuillez renseigner votre adresse e-mail et votre mot de passe.');
       return;
     }
 
-    // Search account
     const foundUser = accounts.find(
-      (acc) =>
-        acc.email?.toLowerCase().trim() === email.toLowerCase().trim() &&
-        (acc.password === password || password === '••••••••' || acc.password === '••••••••')
+      (acc) => acc.email?.toLowerCase().trim() === email.toLowerCase().trim()
     );
 
     if (!foundUser) {
-      setErrorMessage('Identifiants incorrects. Veuillez vérifier l\'adresse e-mail et le mot de passe.');
+      setErrorMessage('Aucun compte trouvé avec cet e-mail.');
       return;
     }
 
-    setIsLoading(true);
+    executeLogin(foundUser, password);
+  };
 
-    setTimeout(() => {
-      setIsLoading(false);
+  const handlePinSubmit = () => {
+    setErrorMessage('');
+    if (pin.length !== 6) {
+      setErrorMessage('Le code PIN doit contenir 6 chiffres.');
+      return;
+    }
+    if (!selectedPinUser) return;
+
+    executeLogin(selectedPinUser, pin);
+  };
+
+  const executeLogin = async (user: User, passwordToUse: string) => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, password: passwordToUse })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur de connexion');
+      }
+
+      const data = await res.json();
+      
       setIsAuthorized(true);
-      setSelectedUserForLogin(foundUser);
+      setSelectedUserForLogin(data.user);
 
       setTimeout(() => {
-        onLoginSuccess(foundUser);
+        onLoginSuccess(data.user);
       }, 1000);
-    }, 1500);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      // Fallback for mock users in development when offline or local demo
+      if (user.password && user.password === passwordToUse) {
+        setIsAuthorized(true);
+        setSelectedUserForLogin(user);
+        setTimeout(() => onLoginSuccess(user), 1000);
+      } else {
+        setPin('');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleGoogleSSO = () => {
+    // In a real implementation: supabase.auth.signInWithOAuth({ provider: 'google' })
+    alert("Redirection vers Google SSO (Simulation)...");
+    const director = accounts.find(a => a.role.toLowerCase().includes('directeur'));
+    if (director) executeLogin(director, director.password || 'password123');
+  };
+
+  const operationalAccounts = accounts.filter(a => !a.role.toLowerCase().includes('directeur') && !a.role.toLowerCase().includes('admin'));
 
   return (
     <div className="bg-brand-bg min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden font-sans select-none">
-      {/* Ambient Background Blur Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/5 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-primary/5 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Online Status Toggle Box - Top Right */}
-      <div className="fixed top-6 right-6 z-[60] flex items-center gap-2">
-        {/* Toggle option */}
-        <button
-          onClick={() => setIsOnline(!isOnline)}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all duration-300 shadow-sm ${
-            isOnline
-               ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-               : 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100'
-          }`}
-          title="Cliquer pour simuler les bascules réseau"
-        >
-          <span className="material-symbols-outlined text-[16px] animate-pulse">
-            {isOnline ? 'check_circle' : 'cloud_off'}
-          </span>
-          <span className="text-[12px] font-bold tracking-wider uppercase">
-            {isOnline ? 'Mode En Ligne' : 'Mode Hors Ligne'}
-          </span>
-        </button>
-      </div>
-
-      {/* Main Login Module Layout Grid */}
-      <main className="w-full max-w-[440px] z-10 lg:mr-[30%]">
-        {/* Brand Header */}
+      <main className="w-full max-w-[480px] z-10 lg:mr-[30%]">
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-primary text-white mb-4 shadow-md shadow-indigo-100">
-            <span
-              className="material-symbols-outlined text-[28px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              inventory_2
-            </span>
+            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
           </div>
-          <h1 className="text-3xl font-bold text-brand-text tracking-tight font-sans">SmartStock ERP</h1>
-          <p className="text-sm text-brand-muted font-semibold mt-1 font-sans">
-            Gestion Logistique d'Entreprise
-          </p>
+          <h1 className="text-3xl font-bold text-brand-text tracking-tight">SmartStock ERP</h1>
+          <p className="text-sm text-brand-muted font-semibold mt-1">Gestion Logistique d'Entreprise</p>
         </div>
 
-        {/* Authentication Card */}
-        <div className="glass-card bg-brand-surface border border-brand-border rounded-2xl p-8 md:p-10 shadow-xl relative overflow-hidden transition-all duration-300">
-          {/* Decorative accent bar */}
+        {onGoToCatalog && (
+          <div className="text-center mb-6">
+            <button
+              onClick={onGoToCatalog}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-100 text-purple-900 font-bold rounded-xl text-xs hover:bg-purple-200 transition-all shadow-xs cursor-pointer border border-purple-200"
+            >
+              <span>🛒</span> Consulter le Catalogue Client Public (PWA)
+            </button>
+          </div>
+        )}
+
+        <div className="glass-card bg-brand-surface border border-brand-border rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-brand-primary"></div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Email Field */}
-            <div className="space-y-2">
-              <label
-                className="block text-[11px] font-bold text-brand-text uppercase tracking-wider font-sans"
-                htmlFor="email"
+          {/* Tabs */}
+          <div className="flex bg-brand-surface-container-low rounded-xl p-1 mb-6">
+            <button
+              onClick={() => { setActiveTab('direction'); setErrorMessage(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'direction' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              Direction / Admin
+            </button>
+            <button
+              onClick={() => { setActiveTab('pos'); setErrorMessage(''); setSelectedPinUser(null); setPin(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pos' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              Point de Vente (PIN)
+            </button>
+          </div>
+
+          {errorMessage && (
+            <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-semibold">
+              {errorMessage}
+            </div>
+          )}
+
+          {activeTab === 'direction' && (
+            <form className="space-y-5 animate-fade-in" onSubmit={handleDirectorLogin}>
+              <button
+                type="button"
+                onClick={handleGoogleSSO}
+                className="w-full h-11 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-bold text-gray-700 transition-all flex items-center justify-center gap-3 shadow-sm"
               >
-                Adresse E-mail
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">
-                  mail
-                </span>
-                <input
-                  id="email"
-                  name="email"
-                  placeholder="nom@entreprise.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || isAuthorized}
-                  className="w-full h-11 pl-10 pr-4 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-sans focus:outline-none focus:bg-white focus:border-brand-primary focus:ring-4 focus:ring-indigo-100 transition-all duration-150"
-                  type="email"
-                />
-              </div>
-            </div>
+                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
+                Continuer avec Google (SSO)
+              </button>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label
-                  className="block text-[11px] font-bold text-brand-text uppercase tracking-wider font-sans"
-                  htmlFor="password"
-                >
-                  Mot de passe
-                </label>
-                <button
-                  type="button"
-                  onClick={() => alert('Récupération de mot de passe démo : Les identifiants préremplis peuvent contourner cela en toute sécurité.')}
-                  className="text-[11px] font-bold text-brand-primary hover:underline transition-all"
-                >
-                  Mot de passe oublié ?
-                </button>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-gray-400 font-bold bg-brand-surface px-3">
+                  ou avec un mot de passe
+                </div>
               </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">
-                  lock
-                </span>
-                <input
-                  id="password"
-                  name="password"
-                  placeholder="••••••••"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading || isAuthorized}
-                  className="w-full h-11 pl-10 pr-12 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-sans focus:outline-none focus:bg-white focus:border-brand-primary focus:ring-4 focus:ring-indigo-100 transition-all duration-150"
-                  type={showPassword ? 'text' : 'password'}
-                />
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                  type="button"
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showPassword ? 'visibility_off' : 'visibility'}
-                  </span>
-                </button>
-              </div>
-            </div>
 
-            {/* Remember Me Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20 cursor-pointer"
-                />
-                <label
-                  className="text-xs text-brand-muted select-none cursor-pointer"
-                  htmlFor="remember"
-                >
-                  Se souvenir de cet appareil
-                </label>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-brand-text uppercase tracking-wider">Adresse E-mail</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">mail</span>
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading || isAuthorized}
+                    className="w-full h-11 pl-10 pr-4 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
+                    type="email"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Error Message display */}
-            {errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-semibold leading-relaxed">
-                {errorMessage}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-brand-text uppercase tracking-wider">Mot de passe</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">lock</span>
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading || isAuthorized}
+                    className="w-full h-11 pl-10 pr-12 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
+                    type={showPassword ? 'text' : 'password'}
+                  />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1" onClick={() => setShowPassword(!showPassword)}>
+                    <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                  </button>
+                </div>
               </div>
-            )}
 
-            {/* Submit Connect Button */}
-            <button
-              className={`w-full h-12 text-sm font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-md shadow-indigo-100 hover:-translate-y-0.5 active:translate-y-0 ${
-                isAuthorized
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-brand-primary hover:bg-brand-primary-hover text-white'
-              }`}
-              type="submit"
-              disabled={isLoading || isAuthorized}
-            >
-              {isLoading ? (
-                <>
-                  <span className="material-symbols-outlined animate-spin">sync</span>
-                  Connexion...
-                </>
-              ) : isAuthorized ? (
-                <>
-                  <span className="material-symbols-outlined">verified_user</span>
-                  Autorisé : {selectedUserForLogin?.role}
-                </>
+              <button
+                type="submit"
+                disabled={isLoading || isAuthorized}
+                className={`w-full h-11 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${isAuthorized ? 'bg-emerald-600 text-white' : 'bg-brand-primary hover:bg-brand-primary-hover text-white'}`}
+              >
+                {isLoading ? <><span className="material-symbols-outlined animate-spin">sync</span>Connexion...</> : isAuthorized ? 'Autorisé' : 'Se Connecter'}
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'pos' && (
+            <div className="animate-fade-in">
+              {!selectedPinUser ? (
+                <div>
+                  <h3 className="text-sm font-bold text-brand-text mb-4 text-center">Sélectionnez votre profil</h3>
+                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
+                    {operationalAccounts.map(acc => (
+                      <button
+                        key={acc.email}
+                        onClick={() => setSelectedPinUser(acc)}
+                        className="p-3 bg-brand-surface-container-low border border-brand-border hover:border-brand-primary rounded-xl flex flex-col items-center justify-center text-center transition-all group"
+                      >
+                        <img src={acc.avatar} alt={acc.name} className="w-12 h-12 rounded-full mb-2 bg-white shadow-sm group-hover:scale-105 transition-transform" />
+                        <span className="text-xs font-bold text-brand-text truncate w-full">{acc.name}</span>
+                        <span className="text-[10px] text-brand-muted">{acc.role}</span>
+                      </button>
+                    ))}
+                    {operationalAccounts.length === 0 && (
+                      <div className="col-span-2 text-center p-4 text-xs text-brand-muted bg-brand-surface-container-low rounded-xl">
+                        Aucun profil opérationnel trouvé.
+                      </div>
+                    )}
+                  </div>
+                </div>
               ) : (
-                <>
-                  Se Connecter
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                </>
+                <div className="flex flex-col items-center">
+                  <button onClick={() => {setSelectedPinUser(null); setPin(''); setErrorMessage('');}} className="self-start text-[10px] uppercase font-bold text-brand-primary hover:underline mb-4 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                    Retour
+                  </button>
+                  <img src={selectedPinUser.avatar} alt="Avatar" className="w-16 h-16 rounded-full mb-2 bg-white shadow-md" />
+                  <h3 className="text-sm font-bold text-brand-text mb-1">{selectedPinUser.name}</h3>
+                  <p className="text-[10px] text-brand-muted mb-6">Saisissez votre code PIN à 6 chiffres</p>
+                  
+                  <div className="flex gap-2 mb-6">
+                    {[0,1,2,3,4,5].map(i => (
+                      <div key={i} className={`w-8 h-10 rounded-lg border-2 flex items-center justify-center font-bold text-lg ${pin.length > i ? 'border-brand-primary text-brand-primary bg-brand-primary/10' : 'border-brand-border bg-brand-surface-container-low'}`}>
+                        {pin.length > i ? '•' : ''}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
+                    {[1,2,3,4,5,6,7,8,9].map(num => (
+                      <button key={num} onClick={() => pin.length < 6 && setPin(pin + num)} className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors">
+                        {num}
+                      </button>
+                    ))}
+                    <button onClick={() => setPin('')} className="h-12 rounded-xl bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors flex items-center justify-center">
+                      EFFACER
+                    </button>
+                    <button onClick={() => pin.length < 6 && setPin(pin + '0')} className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors">
+                      0
+                    </button>
+                    <button onClick={handlePinSubmit} disabled={pin.length !== 6 || isLoading} className="h-12 rounded-xl bg-brand-primary text-white font-bold disabled:opacity-50 hover:bg-brand-primary-hover transition-colors flex items-center justify-center">
+                      <span className="material-symbols-outlined">login</span>
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
-
-            {/* Accès Rapide Roles Grid */}
-            <div className="pt-4 border-t border-gray-100 space-y-3">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">
-                Rôles d'accès rapide (Démo)
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('Gouverneur')}
-                  className="p-2 border border-indigo-50 hover:border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50 rounded-xl text-left text-xs transition-all flex flex-col justify-between"
-                >
-                  <span className="font-bold text-brand-primary">Admin</span>
-                  <span className="text-[9px] text-gray-400 mt-0.5 truncate">admin@company.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('Directeur')}
-                  className="p-2 border border-sky-50 hover:border-sky-100 bg-sky-50/30 hover:bg-sky-50 rounded-xl text-left text-xs transition-all flex flex-col justify-between"
-                >
-                  <span className="font-bold text-brand-secondary">Directeur</span>
-                  <span className="text-[9px] text-gray-400 mt-0.5 truncate">director@company.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('Gestionnaire')}
-                  className="p-2 border border-emerald-50 hover:border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50 rounded-xl text-left text-xs transition-all flex flex-col justify-between"
-                >
-                  <span className="font-bold text-emerald-700">Stock Manager</span>
-                  <span className="text-[9px] text-gray-400 mt-0.5 truncate">inventory@company.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('Caissier')}
-                  className="p-2 border border-amber-50 hover:border-amber-100 bg-amber-50/30 hover:bg-amber-50 rounded-xl text-left text-xs transition-all flex flex-col justify-between"
-                >
-                  <span className="font-bold text-amber-700">Caissier (POS)</span>
-                  <span className="text-[9px] text-gray-400 mt-0.5 truncate">cashier@company.com</span>
-                </button>
-              </div>
             </div>
-          </form>
-
-          {/* SSO Options */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-gray-400 font-bold bg-white px-3">
-              Accès Autorisé Uniquement
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => {
-                handleQuickLogin('Gouverneur');
-              }}
-              className="flex items-center justify-center gap-2 h-10 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px] text-brand-accent">key</span>
-              Connexion SSO
-            </button>
-            <button
-              onClick={() => {
-                const code = prompt('Veuillez saisir votre jeton d\'authentification mobile à 6 chiffres (Simulé : 481023) :');
-                if (code) {
-                  handleQuickLogin('Gouverneur');
-                }
-              }}
-              className="flex items-center justify-center gap-2 h-10 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px] text-brand-accent">qr_code_2</span>
-              Validation Mobile
-            </button>
-          </div>
+          )}
         </div>
-
-        {/* Footer */}
-        <footer className="mt-12 text-center text-xs text-gray-400 font-sans">
-          <p>© 2026 SmartStock ERP. Tous les systèmes sont opérationnels.</p>
-          <div className="flex justify-center gap-6 mt-3 font-semibold text-gray-500">
-            <button onClick={() => alert('Certification d\'audit de sécurité : conformité SOC2 Type II vérifiée.')} className="hover:text-gray-800 transition-colors">
-              Politique de Sécurité
-            </button>
-            <span>•</span>
-            <button onClick={() => alert('Lignes d\'assistance technique : support@smartstock-erp.com')} className="hover:text-gray-800 transition-colors">
-              Assistance Technique
-            </button>
-          </div>
-        </footer>
       </main>
 
-      {/* Side Image Section (Desktop Only) */}
       <div className="hidden lg:block absolute right-0 top-0 w-[30%] h-full overflow-hidden select-none">
-        <div
-          className="w-full h-full relative bg-cover bg-center transition-transform duration-1000 hover:scale-105"
-          style={{ backgroundImage: `url('${LOGIN_BG_IMAGE}')` }}
-        >
-          {/* Gradients overlay */}
+        <div className="w-full h-full relative bg-cover bg-center transition-transform duration-1000 hover:scale-105" style={{ backgroundImage: `url('${LOGIN_BG_IMAGE}')` }}>
           <div className="absolute inset-0 bg-gradient-to-r from-[#fcf8fa] via-[#fcf8fa]/40 to-transparent w-40 z-10"></div>
           <div className="absolute inset-0 bg-indigo-900/10 mix-blend-multiply"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#131b2e]/60 to-transparent"></div>
-
-          {/* Slogan */}
-          <div className="absolute bottom-12 left-12 right-12 text-white z-20">
-            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3 inline-block">
-              Centre d'Automatisation
-            </span>
-            <h3 className="text-xl font-bold leading-tight font-sans text-white">
-              Systèmes de stockage automatisés avec gestion commerciale haute densité.
-            </h3>
-            <p className="text-xs text-gray-200 font-sans mt-2">
-              Les opérateurs autorisés peuvent sécuriser les boucles de connexion directement avec un accès SSO.
-            </p>
-          </div>
         </div>
       </div>
     </div>

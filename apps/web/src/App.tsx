@@ -13,32 +13,80 @@ import { Performance } from './components/Performance';
 import { Warehouse } from './components/Warehouse';
 import { POS } from './components/POS';
 import { DirectorDashboard } from './components/DirectorDashboard';
+import { SetPassword } from './components/SetPassword';
+import { PublicCatalog } from './components/PublicCatalog';
 import {
-  INITIAL_DIRECTORS,
-  INITIAL_GOVERNANCE_LOGS,
-  INITIAL_TRANSACTIONS,
   INITIAL_STOCK_ARRIVALS,
-  PROFILES,
 } from './data';
-import { useCatalog } from '@pos/core';
+import { useCatalog, useBackend } from '@pos/core';
 
 export default function App() {
+  const [isCatalogView, setIsCatalogView] = useState(() => {
+    const hash = window.location.hash;
+    const path = window.location.pathname;
+    return hash.includes('catalog') || path.includes('/catalog');
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentScreen, setScreen] = useState<Screen>('performance');
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      const path = window.location.pathname;
+      if (hash.includes('catalog') || path.includes('/catalog')) {
+        setIsCatalogView(true);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [warehouseTab, setWarehouseTab] = useState('dashboard');
   const [warehouseSubTab, setWarehouseSubTab] = useState('overview');
   const [posTab, setPosTab] = useState<'sale' | 'suspended' | 'returns' | 'history' | 'caisse' | 'stats' | 'profile' | 'settings'>('sale');
   const [posSubTab, setPosSubTab] = useState<string>('default');
   const [globallySelectedSku, setGloballySelectedSku] = useState<string | null>(null);
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
+
+  useEffect(() => {
+    // Check if we are in a password setup/reset flow from Supabase invite
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token=') && (hash.includes('type=invite') || hash.includes('type=recovery'))) {
+      setIsSettingPassword(true);
+    }
+  }, []);
+
+  const { profiles, sales, logs: backendLogs, loading: backendLoading } = useBackend();
 
   // Authentication & accounts database state
-  const [accounts, setAccounts] = useState<User[]>(Object.values(PROFILES));
+  const [accounts, setAccounts] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Core global state shared across all dashboards
-  const [directors, setDirectors] = useState<Director[]>(INITIAL_DIRECTORS);
-  const [logs, setLogs] = useState<GovernanceLog[]>(INITIAL_GOVERNANCE_LOGS);
+  const [directors, setDirectors] = useState<Director[]>([]);
+  const [logs, setLogs] = useState<GovernanceLog[]>([]);
+
+  useEffect(() => {
+    if (profiles && profiles.length > 0) {
+      setAccounts(profiles);
+      setDirectors(profiles.map(p => ({
+        id: p.id,
+        name: p.name || p.first_name || 'Utilisateur',
+        email: p.email,
+        department: p.role,
+        lastActivity: 'Récemment',
+        status: p.is_active !== false ? 'Actif' : 'Suspendu',
+        initials: (p.name || p.first_name || 'U').slice(0, 2).toUpperCase(),
+        bgColor: 'bg-indigo-50 text-indigo-700'
+      })));
+    }
+  }, [profiles]);
+
+  useEffect(() => {
+    if (backendLogs && backendLogs.length > 0) {
+      setLogs(backendLogs);
+    }
+  }, [backendLogs]);
   
   // Database catalog integration
   const { products: apiProducts, isOnline, pendingSyncCount, syncPendingSales } = useCatalog();
@@ -60,8 +108,14 @@ export default function App() {
     return () => clearInterval(interval);
   }, [pendingSyncCount, syncPendingSales]);
 
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [arrivals, setArrivals] = useState<StockArrival[]>(INITIAL_STOCK_ARRIVALS);
+
+  useEffect(() => {
+    if (sales && sales.length > 0) {
+      setTransactions(sales as any);
+    }
+  }, [sales]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Notification alerts state
@@ -142,9 +196,37 @@ export default function App() {
     triggerAlert(`Transaction terminée : ${transactionId} de ${totalAmount.toLocaleString('fr-FR')} F CFA finalisée !`, 'success');
   };
 
+  // Public Catalog route check (standalone or unauthenticated client access)
+  if (isCatalogView) {
+    return (
+      <PublicCatalog 
+        onGoToLogin={() => {
+          setIsCatalogView(false);
+          if (window.location.hash.includes('catalog')) {
+            window.location.hash = '';
+          }
+        }} 
+      />
+    );
+  }
+
   // If not authenticated, render Login Page
+  if (isSettingPassword) {
+    return (
+      <SetPassword 
+        onSuccess={() => {
+          setIsSettingPassword(false);
+          triggerAlert('Mot de passe défini avec succès. Vous pouvez maintenant vous connecter.', 'success');
+        }} 
+      />
+    );
+  }
+
   if (!isAuthenticated) {
-    return <Login accounts={accounts} onLoginSuccess={handleLoginSuccess} />;
+    return <Login accounts={accounts} onLoginSuccess={handleLoginSuccess} onGoToCatalog={() => {
+      setIsCatalogView(true);
+      window.location.hash = '#catalog';
+    }} />;
   }
 
   return (

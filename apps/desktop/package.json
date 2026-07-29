@@ -7,7 +7,8 @@
     "dev": "npm run start:electron",
     "start:electron": "wait-on http://localhost:3001 && electron .",
     "build:web": "cd ../web && npx vite build && node -e \"const fs=require('fs'); fs.rmSync('../../desktop/dist-web', {recursive:true, force:true}); fs.cpSync('dist', '../../desktop/dist-web', {recursive:true})\"",
-    "build": "npm run build:web && electron-builder --win"
+    "build": "npm run build:web && electron-builder --win",
+    "lint": "oxlint"
   },
   "build": {
     "appId": "com.hinov.pos",

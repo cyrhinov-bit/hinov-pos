@@ -8,5 +8,8 @@ coverage/
 !.env.example
 .turbo/
 dist-electron/
+desktop/dist-web/
+apps/*/dist/
 *.db
 .gemini/
+

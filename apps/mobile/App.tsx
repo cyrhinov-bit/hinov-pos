@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
-// Interface mock (normalement on les importerait de @pos/core si les types y étaient, on va les mocker ici pour l'exemple)
+import { INITIAL_PRODUCTS } from '@pos/core';
+
 interface CartItem {
   sku: string;
   name: string;
@@ -33,18 +34,20 @@ export default function App() {
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     setIsScanning(false);
     
-    // Simulation : ajout d'un article basé sur le code scanné
+    // Rechercher dans le catalogue @pos/core par SKU ou ID
+    const foundProduct = INITIAL_PRODUCTS.find(p => p.sku === data || p.id === data);
+
     const newItem: CartItem = {
-      sku: data,
-      name: `Article Scanné (${data.substring(0, 5)}...)`,
-      price: 2500, // prix par défaut
+      sku: foundProduct?.sku || data,
+      name: foundProduct ? foundProduct.name : `Article Scanné (${data.substring(0, 8)})`,
+      price: foundProduct ? foundProduct.price : 2500,
       quantity: 1,
     };
 
     setCart((prev: CartItem[]) => {
-      const existing = prev.find((i: CartItem) => i.sku === data);
+      const existing = prev.find((i: CartItem) => i.sku === newItem.sku);
       if (existing) {
-        return prev.map((i: CartItem) => i.sku === data ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map((i: CartItem) => i.sku === newItem.sku ? { ...i, quantity: i.quantity + 1 } : i);
       }
       return [...prev, newItem];
     });

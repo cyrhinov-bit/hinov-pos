@@ -62,17 +62,21 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
   // Modals for User Management
   const [showUserModal, setShowUserModal] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'Gestionnaire de stock', status: 'Active' });
+  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'Gestionnaire de stock', status: 'Actif' });
 
   // Company Settings State
-  const [companySettings, setCompanySettings] = useState({
-    name: 'SmartStock ERP',
-    logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAdyr1abw6RtNQI2HtN1lu893gBGhm3IV8oLn_rfsLPIRMTd6DxPhyy01wH_hP34ivPu8ANo4mrkgBDvx9lSq9tG_bHH-vT3uOP7Mh08O5x7s-vplvHDofZ3lvXafq0GrBRRFWNS4xzeK6kFuRtqraWkKAw98EtXO8s7exOrDUtLGOP0PUFkh2ero4JayDhzn4POKfAwYIlZplPv7Ebi8B61PK8jnUjFvgs_-Na3FJtSKgJD77q3buP5HavRmMCmlCUCNeKEVVoZBc',
-    address: 'Avenue de la République, Dakar, Sénégal',
-    phone: '+221 33 800 00 00',
-    currency: 'F CFA',
-    timezone: 'UTC/GMT +0',
-    lowStockThreshold: 15,
+  const [companySettings, setCompanySettings] = useState(() => {
+    const saved = localStorage.getItem('pos_company_settings');
+    if (saved) return JSON.parse(saved);
+    return {
+      name: 'SmartStock ERP',
+      logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAdyr1abw6RtNQI2HtN1lu893gBGhm3IV8oLn_rfsLPIRMTd6DxPhyy01wH_hP34ivPu8ANo4mrkgBDvx9lSq9tG_bHH-vT3uOP7Mh08O5x7s-vplvHDofZ3lvXafq0GrBRRFWNS4xzeK6kFuRtqraWkKAw98EtXO8s7exOrDUtLGOP0PUFkh2ero4JayDhzn4POKfAwYIlZplPv7Ebi8B61PK8jnUjFvgs_-Na3FJtSKgJD77q3buP5HavRmMCmlCUCNeKEVVoZBc',
+      address: 'Avenue de la République, Dakar, Sénégal',
+      phone: '+221 33 800 00 00',
+      currency: 'F CFA',
+      timezone: 'UTC/GMT +0',
+      lowStockThreshold: 15,
+    };
   });
 
   // Profile Form State
@@ -156,12 +160,12 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
       });
     } else {
       setEditingUser(null);
-      setUserForm({ name: '', email: '', password: 'password123', role: 'Gestionnaire de stock', status: 'Actif' });
+      setUserForm({ name: '', email: '', password: '', role: 'Gestionnaire de stock', status: 'Actif' });
     }
     setShowUserModal(true);
   };
 
-  const handleSaveUser = (e: React.FormEvent) => {
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userForm.name || !userForm.email) {
       alert('Veuillez remplir les informations obligatoires');
@@ -169,8 +173,8 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
     }
 
     if (editingUser) {
-      // Edit User
-      setAccounts(prev => prev.map(a => a.email === editingUser.email ? { ...a, name: userForm.name, role: userForm.role, password: userForm.password } : a));
+      // Edit User logic... (would require a different API call in the future)
+      setAccounts(prev => prev.map(a => a.email === editingUser.email ? { ...a, name: userForm.name, role: userForm.role } : a));
       setDirectors(prev => prev.map(d => d.email === editingUser.email ? {
         ...d,
         name: userForm.name,
@@ -179,32 +183,30 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
       } : d));
       triggerAlert(`Compte de ${userForm.name} modifié avec succès !`, 'success');
       logDirectorAction('Modification Utilisateur', `Le directeur a modifié le compte de ${userForm.name} (${userForm.email})`);
+      setShowUserModal(false);
     } else {
-      // Create User
-      const newUser: User = {
-        name: userForm.name,
-        email: userForm.email,
-        password: userForm.password,
-        role: userForm.role,
-        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(userForm.name)}`,
-        branch: 'Succursale active',
-      };
-      const newDir: Director = {
-        id: `USR-${Date.now().toString().slice(-3)}`,
-        name: userForm.name,
-        email: userForm.email,
-        department: userForm.role,
-        lastActivity: 'Créé aujourd\'hui',
-        status: userForm.status as any,
-        initials: userForm.name.slice(0, 2).toUpperCase(),
-        bgColor: 'bg-indigo-50 text-indigo-700',
-      };
-      setAccounts(prev => [...prev, newUser]);
-      setDirectors(prev => [newDir, ...prev]);
-      triggerAlert(`Nouveau compte créé pour ${userForm.name} (${userForm.role}) !`, 'success');
-      logDirectorAction('Création Utilisateur', `Le directeur a créé le compte de ${userForm.name} (${userForm.email})`);
+      // Create User via Invitation
+      try {
+        const res = await fetch('http://localhost:3000/api/invite-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userForm.email, name: userForm.name, role: userForm.role })
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Erreur lors de l\'invitation');
+        }
+
+        triggerAlert(`Une invitation a été envoyée à ${userForm.email}`, 'success');
+        logDirectorAction('Création Utilisateur', `Le directeur a invité ${userForm.name} (${userForm.email}) avec le rôle ${userForm.role}`);
+        setShowUserModal(false);
+        // On success, you might want to refresh the users list
+        // refreshAll(); // from useBackend if passed down
+      } catch (err: any) {
+        alert(err.message);
+      }
     }
-    setShowUserModal(false);
   };
 
   const toggleUserStatus = (u: User) => {
@@ -236,8 +238,20 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
   // --- SETTINGS HANDLER ---
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('pos_company_settings', JSON.stringify(companySettings));
     triggerAlert('Paramètres de l\'entreprise enregistrés avec succès !', 'success');
     logDirectorAction('Mise à jour Paramètres', 'Modification des paramètres généraux de l\'entreprise.');
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompanySettings({ ...companySettings, logo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // --- PROFILE HANDLER ---
@@ -1384,6 +1398,18 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider">Logo de l'Entreprise (Image)</label>
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="w-full px-3.5 py-2.5 border border-brand-border rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-primary bg-brand-surface text-brand-text"
+                  />
+                  {companySettings.logo && !companySettings.logo.startsWith('http') && (
+                    <img src={companySettings.logo} alt="Logo" className="mt-2 h-10 w-auto rounded border" />
+                  )}
+                </div>
+                <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider">Devise Monétaire</label>
                   <input 
                     type="text" 
@@ -1550,17 +1576,7 @@ export const DirectorDashboard: React.FC<DirectorDashboardProps> = ({
                   className="w-full px-3.5 py-2 border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-primary disabled:opacity-50 bg-brand-surface text-brand-text"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider">Mot de passe</label>
-                <input 
-                  type="text" 
-                  required
-                  value={userForm.password}
-                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                  placeholder="Mot de passe"
-                  className="w-full px-3.5 py-2 border border-brand-border rounded-xl text-xs focus:outline-none focus:border-brand-primary bg-brand-surface text-brand-text font-mono"
-                />
-              </div>
+
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

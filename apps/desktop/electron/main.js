@@ -7,8 +7,8 @@ function createWindow() {
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true
     }
   });
 
@@ -38,13 +38,13 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handler pour l'imprimante thermique et le tiroir-caisse
-ipcMain.handle('print-receipt', async (event, content) => {
+ipcMain.handle('print-receipt', async (_event, content) => {
   console.log("Printing receipt: ", content);
   // Ici nous ajouterons la logique escpos pour communiquer avec l'imprimante USB
   return true;
 });
 
-ipcMain.handle('open-cash-drawer', async (event) => {
+ipcMain.handle('open-cash-drawer', async (_event) => {
   console.log("Opening cash drawer");
   // Commande ESC/POS d'ouverture du tiroir
   return true;

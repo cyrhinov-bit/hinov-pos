@@ -1,11 +1,60 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+        manifest: {
+          name: 'Hinov POS & Catalogue',
+          short_name: 'Hinov POS',
+          description: 'Application de Caisse POS et Catalogue Produit Public WhatsApp',
+          theme_color: '#8e24aa',
+          background_color: '#ffffff',
+          display: 'standalone',
+          start_url: '/#/catalog',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ],
+          shortcuts: [
+            {
+              name: 'Catalogue Public',
+              short_name: 'Catalogue',
+              description: 'Consulter et commander sur le catalogue public',
+              url: '/#/catalog'
+            },
+            {
+              name: 'Interface Caisse POS',
+              short_name: 'Caisse',
+              description: 'Accéder à la caisse d\'enregistrement des ventes',
+              url: '/#/pos'
+            }
+          ]
+        }
+      })
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -13,7 +62,7 @@ export default defineConfig(() => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},

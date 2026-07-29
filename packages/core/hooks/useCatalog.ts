@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Product } from '../types';
+import { INITIAL_PRODUCTS } from '../data';
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -7,7 +8,7 @@ export function useCatalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isOnline, setIsOnline] = useState(true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const updatePendingCount = () => {
@@ -24,24 +25,29 @@ export function useCatalog() {
       if (!res.ok) throw new Error('Erreur de récupération du catalogue');
       
       const data = await res.json();
-      setProducts(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setProducts(data);
+        localStorage.setItem('pos_catalog_cache', JSON.stringify(data));
+      } else {
+        // Si l'API renvoie un tableau vide, utiliser le cache ou les données initiales
+        const cached = localStorage.getItem('pos_catalog_cache');
+        const fallbackData = cached ? JSON.parse(cached) : INITIAL_PRODUCTS;
+        setProducts(fallbackData);
+      }
       setError(null);
       setIsOnline(true);
-      
-      // Mettre en cache pour le hors-ligne
-      localStorage.setItem('pos_catalog_cache', JSON.stringify(data));
     } catch (err: any) {
-      console.warn("Mode Hors-Ligne activé : Impossible de joindre l'API", err);
+      console.warn("Mode Hors-Ligne activé : Utilisation du cache ou des données initiales", err);
       setIsOnline(false);
       
-      // Chargement depuis le cache local
+      // Chargement depuis le cache local ou les données initiales du projet
       const cached = localStorage.getItem('pos_catalog_cache');
       if (cached) {
         setProducts(JSON.parse(cached));
-        setError(null); // On a des données, on ne montre pas d'erreur critique
       } else {
-        setError("Impossible de joindre le serveur et aucun cache local disponible.");
+        setProducts(INITIAL_PRODUCTS);
       }
+      setError(null); // Des données valides sont affichées
     } finally {
       setLoading(false);
       updatePendingCount();
@@ -111,22 +117,27 @@ export function useCatalog() {
 
     try {
       console.log(`Tentative de synchronisation de ${queue.length} ventes...`);
+      const remainingQueue = [...queue];
+
       for (const sale of queue) {
         const res = await fetch(`${API_URL}/checkout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cart: sale.cart, total: sale.total }),
         });
+
         if (!res.ok) throw new Error("Échec d'une synchronisation");
+
+        // Retirer la vente synchronisée avec succès
+        remainingQueue.shift();
+        localStorage.setItem('pos_sync_queue', JSON.stringify(remainingQueue));
       }
-      
-      // Succès total : vider la file d'attente
-      localStorage.setItem('pos_sync_queue', '[]');
+
       console.log("Synchronisation terminée avec succès !");
       setIsOnline(true);
       await fetchProducts(); // Rafraîchir les vrais stocks depuis le serveur
     } catch (err) {
-      console.error("Échec de la synchronisation, on réessaiera plus tard.", err);
+      console.error("Échec de la synchronisation, réessai ultérieur pour la suite.", err);
       setIsOnline(false);
     }
     updatePendingCount();
