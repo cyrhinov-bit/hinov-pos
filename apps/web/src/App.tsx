@@ -93,9 +93,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    if (apiProducts.length > 0) {
-      setProducts(apiProducts);
-    }
+    setProducts(apiProducts || []);
   }, [apiProducts]);
 
   // Auto-sync offline sales every 30 seconds
