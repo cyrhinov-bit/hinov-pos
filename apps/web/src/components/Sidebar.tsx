@@ -37,10 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   posSubTab = 'default',
   setPosSubTab,
 }) => {
-  const role = currentUser.role;
-  const isDirector = role.toLowerCase().includes('directeur');
-  const isWarehouseManager = role.toLowerCase().includes('gestionnaire');
-  const isCaissier = role.toLowerCase().includes('caissier');
+  const role = currentUser.role || '';
+  const roleLower = role.toLowerCase();
+  const isAdmin = roleLower.includes('administrateur') || roleLower.includes('gouverneur') || roleLower.includes('admin');
+  const isDirector = roleLower.includes('directeur') || isAdmin;
+  const isWarehouseManager = roleLower.includes('gestionnaire');
+  const isCaissier = roleLower.includes('caissier');
 
   const isSettingsActive = currentScreen === 'director-settings' || 
     (currentScreen === 'warehouse' && warehouseTab === 'settings') ||
@@ -102,19 +104,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isScreenAllowed = (screen: Screen): boolean => {
-    if (role.includes('Gouverneur')) {
-      return screen === 'governance';
-    }
-    if (isDirector) {
-      return screen.startsWith('director-');
+    if (isAdmin || isDirector) {
+      return screen.startsWith('director-') || screen === 'governance';
     }
     if (isWarehouseManager) {
       return screen === 'warehouse';
     }
-    if (role.includes('Caissier')) {
+    if (isCaissier) {
       return screen === 'pos';
     }
-    return false;
+    return true;
   };
 
   // Hide sales option for the Director, show only for Caissier
@@ -162,6 +161,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <span className="material-symbols-outlined text-lg">dashboard</span>
               <span>Tableau de Bord</span>
+            </button>
+
+            <button
+              onClick={() => setScreen('governance')}
+              className={`w-full flex items-center gap-3 py-2.5 px-4 rounded-xl text-left font-sans text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                currentScreen === 'governance'
+                  ? 'text-white bg-[#8e24aa] font-bold shadow-sm shadow-purple-900/40 relative after:content-[""] after:absolute after:left-0 after:top-1/4 after:h-1/2 after:w-1 after:bg-white after:rounded-full'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-lg text-emerald-400">admin_panel_settings</span>
+              <span>Gouvernance & Utilisateurs</span>
             </button>
 
             <button
