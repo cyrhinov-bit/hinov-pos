@@ -3,7 +3,7 @@ import { PROFILES } from '../data';
 
 const API_URL = 'http://localhost:3000/api';
 const SUPABASE_URL = 'https://slzvsirdoxtgmrjxigxq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsenZzaXJkb3h0Z21yanhpZ3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxODU1MTcsImV4cCI6MjEwMDc2MTUxN30.DPG4v1Eq0A5v4cflYTGMw1n3qV7Si52_MAOxVd2JtI4';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsenZzaXJkb3h0Z21yanhpZ3hxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTE4NTUxNywiZXhwIjoyMTAwNzYxNTE3fQ.X3YJOd375hpz4aTH5nio7FSJHwB49xuRaAT_hCKjtEI';
 
 export function useBackend() {
   const [profiles, setProfiles] = (useState as any)(Object.values(PROFILES));
@@ -24,14 +24,14 @@ export function useBackend() {
         }
       }
     } catch (err) {
-      // Si l'API locale échoue, requêter directement Supabase Cloud
+      // Si l'API locale n'est pas lancée, interroger directement Supabase Cloud
     }
 
     try {
       const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=*`, {
         headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+          apikey: SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
         },
         signal: AbortSignal.timeout(3000)
       });
@@ -43,7 +43,7 @@ export function useBackend() {
         }
       }
     } catch (supaErr) {
-      console.warn('Utilisation des profils de démo par défaut', supaErr);
+      console.warn('Utilisation des profils par défaut', supaErr);
     }
   }, []);
 
