@@ -161,12 +161,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-brand-text uppercase tracking-wider">Adresse E-mail</label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">mail</span>
                   <input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
-                    className="w-full h-11 pl-10 pr-4 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
+                    className="w-full h-11 px-4 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
                     type="email"
                   />
                 </div>
@@ -175,17 +174,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-brand-text uppercase tracking-wider">Mot de passe</label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted text-[20px]">lock</span>
                   <input
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
-                    className="w-full h-11 pl-10 pr-12 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
-                    type={showPassword ? 'text' : 'password'}
+                    className="w-full h-11 px-4 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
+                    type="password"
                   />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1" onClick={() => setShowPassword(!showPassword)}>
-                    <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
-                  </button>
                 </div>
               </div>
 
