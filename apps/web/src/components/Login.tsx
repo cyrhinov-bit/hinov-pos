@@ -14,19 +14,15 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCatalog }) => {
-  const [activeTab, setActiveTab] = useState<'direction' | 'pos'>('direction');
+  const [loginStep, setLoginStep] = useState<'credentials' | 'pin'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [selectedUserForLogin, setSelectedUserForLogin] = useState<User | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // POS PIN state
-  const [selectedPinUser, setSelectedPinUser] = useState<User | null>(null);
   const [pin, setPin] = useState('');
 
   // Monitor real online status
@@ -44,7 +40,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
     };
   }, []);
 
-  const handleDirectorLogin = (e?: React.FormEvent) => {
+  const handleLoginSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage('');
     if (!email || !password) {
@@ -78,28 +74,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
       }
     }
 
-    executeLogin(foundUser, password);
-  };
-
-  const handlePinSubmit = () => {
-    setErrorMessage('');
-    if (pin.length !== 6) {
-      setErrorMessage('Le code PIN doit contenir 6 chiffres.');
-      return;
-    }
-    if (!selectedPinUser) return;
-
-    executeLogin(selectedPinUser, pin);
-  };
-
-  const executeLogin = async (user: User, passwordToUse: string) => {
     setIsLoading(true);
     setErrorMessage('');
     try {
       const res = await fetch('http://localhost:3000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, password: passwordToUse })
+        body: JSON.stringify({ email: foundUser.email, password: password })
       });
 
       if (!res.ok) {
@@ -108,41 +89,43 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
       }
 
       const data = await res.json();
-      
-      setIsAuthorized(true);
-      setSelectedUserForLogin(data.user);
-
-      setTimeout(() => {
-        onLoginSuccess(data.user);
-      }, 1000);
+      setSelectedUserForLogin(data.user || foundUser);
+      setLoginStep('pin');
     } catch (err: any) {
       // Fallback verification against local or Supabase profile credentials
       const isPasswordValid = 
-        (user.password_hash && user.password_hash === passwordToUse) ||
-        (user.password && user.password === passwordToUse) ||
-        (user.email === 'e.gnonskan@hinovgroup.com' && passwordToUse === 'majorix90');
+        (foundUser.password_hash && foundUser.password_hash === password) ||
+        (foundUser.password && foundUser.password === password) ||
+        (foundUser.email === 'e.gnonskan@hinovgroup.com' && password === 'majorix90');
 
       if (isPasswordValid) {
-        setIsAuthorized(true);
-        setSelectedUserForLogin(user);
-        setTimeout(() => onLoginSuccess(user), 800);
+        setSelectedUserForLogin(foundUser);
+        setLoginStep('pin');
       } else {
-        setErrorMessage('Mot de passe ou code PIN incorrect.');
-        setPin('');
+        setErrorMessage('Email ou mot de passe incorrect.');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSSO = () => {
-    // In a real implementation: supabase.auth.signInWithOAuth({ provider: 'google' })
-    alert("Redirection vers Google SSO (Simulation)...");
-    const director = accounts.find(a => a.role.toLowerCase().includes('directeur'));
-    if (director) executeLogin(director, director.password || 'password123');
+  const handlePinSubmit = () => {
+    setErrorMessage('');
+    if (pin.length !== 6) {
+      setErrorMessage('Le code PIN doit contenir 6 chiffres.');
+      return;
+    }
+    if (!selectedUserForLogin) return;
+
+    // Simulate pin validation and final login
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsAuthorized(true);
+      setIsLoading(false);
+      onLoginSuccess(selectedUserForLogin);
+    }, 800);
   };
 
-  const operationalAccounts = accounts.filter(a => !a.role.toLowerCase().includes('directeur') && !a.role.toLowerCase().includes('admin'));
 
   return (
     <div className="bg-brand-bg min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden font-sans select-none">
@@ -160,35 +143,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
           <p className="text-sm text-brand-muted font-semibold mt-1">Gestion Logistique d'Entreprise</p>
         </div>
 
-        {onGoToCatalog && (
-          <div className="text-center mb-6">
-            <button
-              onClick={onGoToCatalog}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-100 text-purple-900 font-bold rounded-xl text-xs hover:bg-purple-200 transition-all shadow-xs cursor-pointer border border-purple-200"
-            >
-              <span>🛒</span> Consulter le Catalogue Client Public (PWA)
-            </button>
-          </div>
-        )}
+
 
         <div className="glass-card bg-brand-surface border border-brand-border rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-brand-primary"></div>
-
-          {/* Tabs */}
-          <div className="flex bg-brand-surface-container-low rounded-xl p-1 mb-6">
-            <button
-              onClick={() => { setActiveTab('direction'); setErrorMessage(''); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'direction' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted hover:text-brand-text'}`}
-            >
-              Direction / Admin
-            </button>
-            <button
-              onClick={() => { setActiveTab('pos'); setErrorMessage(''); setSelectedPinUser(null); setPin(''); }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pos' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted hover:text-brand-text'}`}
-            >
-              Point de Vente (PIN)
-            </button>
-          </div>
 
           {errorMessage && (
             <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-semibold">
@@ -196,23 +154,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
             </div>
           )}
 
-          {activeTab === 'direction' && (
-            <form className="space-y-5 animate-fade-in" onSubmit={handleDirectorLogin}>
-              <button
-                type="button"
-                onClick={handleGoogleSSO}
-                className="w-full h-11 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-sm font-bold text-gray-700 transition-all flex items-center justify-center gap-3 shadow-sm"
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                Continuer avec Google (SSO)
-              </button>
+          {loginStep === 'credentials' && (
+            <form className="space-y-5 animate-fade-in" onSubmit={handleLoginSubmit}>
 
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-gray-400 font-bold bg-brand-surface px-3">
-                  ou avec un mot de passe
-                </div>
-              </div>
 
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold text-brand-text uppercase tracking-wider">Adresse E-mail</label>
@@ -221,7 +165,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
                   <input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading || isAuthorized}
+                    disabled={isLoading}
                     className="w-full h-11 pl-10 pr-4 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
                     type="email"
                   />
@@ -235,7 +179,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
                   <input
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading || isAuthorized}
+                    disabled={isLoading}
                     className="w-full h-11 pl-10 pr-12 bg-brand-surface-container-low border border-brand-border rounded-xl text-sm focus:outline-none focus:border-brand-primary transition-all"
                     type={showPassword ? 'text' : 'password'}
                   />
@@ -247,74 +191,81 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
 
               <button
                 type="submit"
-                disabled={isLoading || isAuthorized}
-                className={`w-full h-11 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${isAuthorized ? 'bg-emerald-600 text-white' : 'bg-brand-primary hover:bg-brand-primary-hover text-white'}`}
+                disabled={isLoading}
+                className="w-full h-11 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md bg-brand-primary hover:bg-brand-primary-hover text-white"
               >
-                {isLoading ? <><span className="material-symbols-outlined animate-spin">sync</span>Connexion...</> : isAuthorized ? 'Autorisé' : 'Se Connecter'}
+                {isLoading ? <><span className="material-symbols-outlined animate-spin">sync</span>Connexion...</> : 'Continuer'}
               </button>
             </form>
           )}
 
-          {activeTab === 'pos' && (
-            <div className="animate-fade-in">
-              {!selectedPinUser ? (
-                <div>
-                  <h3 className="text-sm font-bold text-brand-text mb-4 text-center">Sélectionnez votre profil</h3>
-                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
-                    {operationalAccounts.map(acc => (
-                      <button
-                        key={acc.email}
-                        onClick={() => setSelectedPinUser(acc)}
-                        className="p-3 bg-brand-surface-container-low border border-brand-border hover:border-brand-primary rounded-xl flex flex-col items-center justify-center text-center transition-all group"
-                      >
-                        <img src={acc.avatar} alt={acc.name} className="w-12 h-12 rounded-full mb-2 bg-white shadow-sm group-hover:scale-105 transition-transform" />
-                        <span className="text-xs font-bold text-brand-text truncate w-full">{acc.name}</span>
-                        <span className="text-[10px] text-brand-muted">{acc.role}</span>
-                      </button>
-                    ))}
-                    {operationalAccounts.length === 0 && (
-                      <div className="col-span-2 text-center p-4 text-xs text-brand-muted bg-brand-surface-container-low rounded-xl">
-                        Aucun profil opérationnel trouvé.
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {loginStep === 'pin' && selectedUserForLogin && (
+            <div className="animate-fade-in flex flex-col items-center">
+              <button 
+                onClick={() => { setLoginStep('credentials'); setPin(''); setErrorMessage(''); }} 
+                className="self-start text-[10px] uppercase font-bold text-brand-primary hover:underline mb-4 flex items-center gap-1"
+                disabled={isLoading || isAuthorized}
+              >
+                <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                Retour
+              </button>
+              {selectedUserForLogin.avatar ? (
+                <img src={selectedUserForLogin.avatar} alt="Avatar" className="w-16 h-16 rounded-full mb-2 bg-white shadow-md" />
               ) : (
-                <div className="flex flex-col items-center">
-                  <button onClick={() => {setSelectedPinUser(null); setPin(''); setErrorMessage('');}} className="self-start text-[10px] uppercase font-bold text-brand-primary hover:underline mb-4 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">arrow_back</span>
-                    Retour
-                  </button>
-                  <img src={selectedPinUser.avatar} alt="Avatar" className="w-16 h-16 rounded-full mb-2 bg-white shadow-md" />
-                  <h3 className="text-sm font-bold text-brand-text mb-1">{selectedPinUser.name}</h3>
-                  <p className="text-[10px] text-brand-muted mb-6">Saisissez votre code PIN à 6 chiffres</p>
-                  
-                  <div className="flex gap-2 mb-6">
-                    {[0,1,2,3,4,5].map(i => (
-                      <div key={i} className={`w-8 h-10 rounded-lg border-2 flex items-center justify-center font-bold text-lg ${pin.length > i ? 'border-brand-primary text-brand-primary bg-brand-primary/10' : 'border-brand-border bg-brand-surface-container-low'}`}>
-                        {pin.length > i ? '•' : ''}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
-                    {[1,2,3,4,5,6,7,8,9].map(num => (
-                      <button key={num} onClick={() => pin.length < 6 && setPin(pin + num)} className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors">
-                        {num}
-                      </button>
-                    ))}
-                    <button onClick={() => setPin('')} className="h-12 rounded-xl bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors flex items-center justify-center">
-                      EFFACER
-                    </button>
-                    <button onClick={() => pin.length < 6 && setPin(pin + '0')} className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors">
-                      0
-                    </button>
-                    <button onClick={handlePinSubmit} disabled={pin.length !== 6 || isLoading} className="h-12 rounded-xl bg-brand-primary text-white font-bold disabled:opacity-50 hover:bg-brand-primary-hover transition-colors flex items-center justify-center">
-                      <span className="material-symbols-outlined">login</span>
-                    </button>
-                  </div>
+                <div className="w-16 h-16 rounded-full mb-2 bg-brand-primary flex items-center justify-center text-white text-xl font-bold shadow-md">
+                  {selectedUserForLogin.name.charAt(0).toUpperCase()}
                 </div>
               )}
+              <h3 className="text-sm font-bold text-brand-text mb-1">{selectedUserForLogin.name}</h3>
+              <p className="text-[10px] text-brand-muted mb-6">Saisissez votre code PIN caisse à 6 chiffres</p>
+              
+              <div className="flex gap-2 mb-6">
+                {[0,1,2,3,4,5].map(i => (
+                  <div key={i} className={`w-8 h-10 rounded-lg border-2 flex items-center justify-center font-bold text-lg ${pin.length > i ? 'border-brand-primary text-brand-primary bg-brand-primary/10' : 'border-brand-border bg-brand-surface-container-low'}`}>
+                    {pin.length > i ? '•' : ''}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
+                {[1,2,3,4,5,6,7,8,9].map(num => (
+                  <button 
+                    key={num} 
+                    onClick={() => pin.length < 6 && setPin(pin + num)} 
+                    disabled={isLoading || isAuthorized}
+                    className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors disabled:opacity-50"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setPin('')} 
+                  disabled={isLoading || isAuthorized}
+                  className="h-12 rounded-xl bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors flex items-center justify-center disabled:opacity-50"
+                >
+                  EFFACER
+                </button>
+                <button 
+                  onClick={() => pin.length < 6 && setPin(pin + '0')} 
+                  disabled={isLoading || isAuthorized}
+                  className="h-12 rounded-xl bg-brand-surface-container-low border border-brand-border hover:bg-gray-100 text-lg font-bold transition-colors disabled:opacity-50"
+                >
+                  0
+                </button>
+                <button 
+                  onClick={handlePinSubmit} 
+                  disabled={pin.length !== 6 || isLoading || isAuthorized} 
+                  className={`h-12 rounded-xl font-bold transition-colors flex items-center justify-center ${isAuthorized ? 'bg-emerald-600 text-white' : 'bg-brand-primary text-white hover:bg-brand-primary-hover disabled:opacity-50'}`}
+                >
+                  {isLoading ? (
+                    <span className="material-symbols-outlined animate-spin">sync</span>
+                  ) : isAuthorized ? (
+                    <span className="material-symbols-outlined">check</span>
+                  ) : (
+                    <span className="material-symbols-outlined">login</span>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -330,3 +281,4 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, accounts, onGoToCa
     </div>
   );
 };
+
